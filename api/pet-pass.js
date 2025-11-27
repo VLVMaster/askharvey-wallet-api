@@ -1,4 +1,5 @@
 const { PKPass } = require("passkit-generator");
+const path = require("path");
 
 function getBufferFromEnvBase64(name) {
   const value = process.env[name];
@@ -29,7 +30,7 @@ module.exports = async (req, res) => {
 
     const pass = await PKPass.from(
       {
-        model: "./AskHarveyGeneric.pass",
+        model: path.join(__dirname, "..", "AskHarveyGeneric.pass"),
         certificates,
       },
       {
