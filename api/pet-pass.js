@@ -10,7 +10,6 @@ function getBufferFromEnvBase64(name) {
 
 module.exports = async (req, res) => {
   try {
-    // 1) Read pet data from query params (sent by your app)
     const {
       name = "Fido",
       breed = "Golden Retriever",
@@ -21,7 +20,6 @@ module.exports = async (req, res) => {
       id = "AH-123456"
     } = req.query;
 
-    // 2) Load certificates from env vars
     const certificates = {
       wwdr: getBufferFromEnvBase64("PASS_WWDR_CERT_B64"),
       signerCert: getBufferFromEnvBase64("PASS_SIGNER_CERT_B64"),
@@ -29,7 +27,6 @@ module.exports = async (req, res) => {
       signerKeyPassphrase: process.env.PASS_SIGNER_KEY_PASSPHRASE,
     };
 
-    // 3) Build the pass using your template + overrides
     const pass = await PKPass.from(
       {
         model: "./AskHarveyGeneric.pass",
@@ -64,7 +61,6 @@ module.exports = async (req, res) => {
       }
     );
 
-    // 4) Send the .pkpass file
     const buffer = pass.getAsBuffer();
 
     res.setHeader("Content-Type", "application/vnd.apple.pkpass");
