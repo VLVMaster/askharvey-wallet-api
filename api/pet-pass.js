@@ -28,9 +28,11 @@ module.exports = async (req, res) => {
       signerKeyPassphrase: process.env.PASS_SIGNER_KEY_PASSPHRASE,
     };
 
+    const modelPath = path.join(process.cwd(), "AskHarveyGeneric.pass");
+
     const pass = await PKPass.from(
       {
-        model: path.join(__dirname, "..", "AskHarveyGeneric.pass"),
+        model: modelPath,
         certificates,
       },
       {
