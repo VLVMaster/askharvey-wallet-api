@@ -1,30 +1,27 @@
 const { PKPass } = require("passkit-generator");
-const { createClient } = require("@supabase/supabase-js");
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
 
 function getBufferFromEnvBase64(name) {
   const value = process.env[name];
-  if (!value) throw new Error(`Missing env var ${name}`);
+  if (!value) {
+    throw new Error(`Missing env var ${name}`);
+  }
   return Buffer.from(value, "base64");
 }
 
 module.exports = async (req, res) => {
   try {
-    const { petId } = req.query;
-    if (!petId) return res.status(400).json({ error: "petId is required" });
+    // 1) Read pet data from query params (sent by your app)
+    const {
+      name = "Fido",
+      breed = "Golden Retriever",
+      microchip = "123456789",
+      vetPhone = "",
+      insurance = "",
+      ownerContact = "",
+      id = "AH-123456"
+    } = req.query;
 
-    const { data: pet, error } = await supabase
-      .from("pets")
-      .select("*")
-      .eq("id", petId)
-      .single();
-
-    if (error || !pet) return res.status(404).json({ error: "Pet not found" });
-
+    // 2) Load certificates from env vars
     const certificates = {
       wwdr: getBufferFromEnvBase64("PASS_WWDR_CERT_B64"),
       signerCert: getBufferFromEnvBase64("PASS_SIGNER_CERT_B64"),
@@ -32,8 +29,7 @@ module.exports = async (req, res) => {
       signerKeyPassphrase: process.env.PASS_SIGNER_KEY_PASSPHRASE,
     };
 
-    const id = `AH-${pet.id}`;
-
+    // 3) Build the pass using your template + overrides
     const pass = await PKPass.from(
       {
         model: "./AskHarveyGeneric.pass",
@@ -41,27 +37,42 @@ module.exports = async (req, res) => {
       },
       {
         serialNumber: id,
-        barcode: { message: id, format: "PKBarcodeFormatQR", messageEncoding: "iso-8859-1" },
+        barcode: {
+          message: id,
+          format: "PKBarcodeFormatQR",
+          messageEncoding: "iso-8859-1",
+        },
         generic: {
-          headerFields: [{ key: "idNumber", label: "ID #", value: id }],
-          primaryFields: [{ key: "petName", label: "Name", value: pet.name }],
-          secondaryFields: [{ key: "breed", label: "Breed", value: pet.breed }],
-          auxiliaryFields: [{ key: "microchip", label: "Microchip", value: pet.microchip }],
+          headerFields: [
+            { key: "idNumber", label: "ID #", value: id },
+          ],
+          primaryFields: [
+            { key: "petName", label: "Name", value: name },
+          ],
+          secondaryFields: [
+            { key: "breed", label: "Breed", value: breed },
+          ],
+          auxiliaryFields: [
+            { key: "microchip", label: "Microchip", value: microchip },
+          ],
           backFields: [
-            { key: "vetPhone", label: "Vet Phone", value: pet.vet_phone },
-            { key: "insurance", label: "Insurance", value: pet.insurance },
-            { key: "ownerContact", label: "Owner Contact", value: pet.owner_contact }
+            { key: "vetPhone", label: "Vet Phone", value: vetPhone },
+            { key: "insurance", label: "Insurance", value: insurance },
+            { key: "ownerContact", label: "Owner Contact", value: ownerContact }
           ]
         }
       }
     );
 
+    // 4) Send the .pkpass file
     const buffer = pass.getAsBuffer();
 
     res.setHeader("Content-Type", "application/vnd.apple.pkpass");
-    res.setHeader("Content-Disposition", `attachment; filename="${id}.pkpass"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${id}.pkpass"`
+    );
     res.status(200).send(buffer);
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: String(err) });
